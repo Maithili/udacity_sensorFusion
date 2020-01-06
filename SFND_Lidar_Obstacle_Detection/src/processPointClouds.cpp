@@ -196,6 +196,38 @@ Box ProcessPointClouds<PointT>::BoundingBox(typename pcl::PointCloud<PointT>::Pt
     return box;
 }
 
+template<typename PointT>
+BoxQ ProcessPointClouds<PointT>::OrientedBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster)
+{
+    // Compute principal directions
+    Eigen::Vector4f pcaCentroid;
+    pcl::compute3DCentroid(*cluster, pcaCentroid);
+    Eigen::Matrix3f covariance;
+    computeCovarianceMatrixNormalized(*cluster, pcaCentroid, covariance);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+    Eigen::Matrix3f eigenVectorsPCA = eigen_solver.eigenvectors();
+    eigenVectorsPCA.col(2) = eigenVectorsPCA.col(0).cross(eigenVectorsPCA.col(1));
+
+    Eigen::Matrix4f projectionTransform(Eigen::Matrix4f::Identity());
+    projectionTransform.block<3,3>(0,0) = eigenVectorsPCA.transpose();
+    projectionTransform.block<3,1>(0,3) = -1.f * (projectionTransform.block<3,3>(0,0) * pcaCentroid.head<3>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr oriented_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::transformPointCloud(*cluster, *oriented_cluster, projectionTransform);
+
+    PointT minPoint, maxPoint;
+    pcl::getMinMax3D(*oriented_cluster, minPoint, maxPoint);
+    BoxQ oriented_box;
+    oriented_box.cube_length = maxPoint.x - minPoint.x;
+    oriented_box.cube_width = maxPoint.y - minPoint.y;
+    oriented_box.cube_height = maxPoint.z - minPoint.z;
+
+    const Eigen::Quaternionf bboxQuaternion(eigenVectorsPCA);
+    oriented_box.bboxQuaternion = bboxQuaternion;
+    const Eigen::Vector3f meanDiagonal = 0.5f*(maxPoint.getVector3fMap() + minPoint.getVector3fMap());
+    oriented_box.bboxTransform = eigenVectorsPCA * meanDiagonal + pcaCentroid.head<3>();
+
+    return oriented_box;
+}
 
 template<typename PointT>
 void ProcessPointClouds<PointT>::savePcd(typename pcl::PointCloud<PointT>::Ptr cloud, std::string file)

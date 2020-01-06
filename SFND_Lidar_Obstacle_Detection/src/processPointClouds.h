@@ -46,6 +46,8 @@ public:
 
     Box BoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
 
+    BoxQ OrientedBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster);
+
     void savePcd(typename pcl::PointCloud<PointT>::Ptr cloud, std::string file);
 
     typename pcl::PointCloud<PointT>::Ptr loadPcd(std::string file);
