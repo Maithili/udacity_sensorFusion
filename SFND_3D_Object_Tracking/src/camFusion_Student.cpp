@@ -161,7 +161,6 @@ float getDistanceRatio(std::vector<cv::Point2f> &prevPts, std::vector<cv::Point2
         {
             float d1 = distance(currPts[i],currPts[j]);
             float d2 = distance(prevPts[i],prevPts[j]);
-            cout<<d1<<" "<<d2<<endl;
             if ( std::min(d1,d2) < 0.01 )
                 continue;
             n++;
@@ -206,13 +205,22 @@ float distanceToLidarCloud(std::vector<LidarPoint> &lidarPoints)
 {
     float mean_x = 0;
     float var_x = 0;
+    std::vector<float> all_x;
     for (std::vector<LidarPoint>::const_iterator it = lidarPoints.begin(); it != lidarPoints.end(); it++)
+    {
         mean_x += it->x;
+        all_x.push_back(it->x);
+    }
     mean_x /= lidarPoints.size();
     for (std::vector<LidarPoint>::const_iterator it = lidarPoints.begin(); it != lidarPoints.end(); it++)
         var_x += pow(mean_x-it->x,2);
     var_x /= lidarPoints.size();
-    return (mean_x-2*pow(var_x,0.5));
+    std::sort(all_x.begin(),all_x.end());
+    for (std::vector<float>::const_iterator it = all_x.begin(); it != all_x.end(); it++)
+    {
+        if (*it > mean_x-2*pow(var_x,0.5))
+            return (*it);
+    }
 }
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
@@ -268,9 +276,7 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches, std::map<int, int> &bb
                 max_matches = bbMatchCountGrid[i][j];
                 max_index = j;
             }
-            std::cout<<bbMatchCountGrid[i][j]<<" ";
         }
-                std::cout<<endl;
         if (max_index == -1)
             continue;
         bbBestMatches.insert({prevFrame.boundingBoxes[i].boxID,currFrame.boundingBoxes[max_index].boxID});

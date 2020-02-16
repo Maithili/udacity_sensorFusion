@@ -29,6 +29,12 @@ int main(int argc, const char *argv[])
 
     // data location
     string dataPath = "../";
+    ofstream fout;
+    fout.open("../resultAnalysis/output.txt");
+    string detectorType = "SHITOMASI";
+    fout<<detectorType<<endl;
+    string descriptorType = "BRIEF"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+    fout<<descriptorType<<endl;
 
     // camera
     string imgBasePath = dataPath + "images/";
@@ -146,7 +152,6 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
 
         if (detectorType.compare("SHITOMASI") == 0)
         {
@@ -186,7 +191,7 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
+
         descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
 
         // push descriptors for current frame to end of data buffer
@@ -296,7 +301,8 @@ int main(int argc, const char *argv[])
                     computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+                    fout << ttcCamera <<";"<<endl;
+                    bVis = false;
                     if (bVis)
                     {
                         cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
@@ -321,6 +327,7 @@ int main(int argc, const char *argv[])
         }
 
     } // eof loop over all images
-
+    fout<<endl<<endl;
+    fout.close();
     return 0;
 }
