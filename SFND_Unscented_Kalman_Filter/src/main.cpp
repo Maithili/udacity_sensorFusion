@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 
 	Highway highway(viewer);
 
-	//initHighway(viewer);
+//	initHighway(viewer);
 
 	int frame_per_sec = 30;
 	int sec_interval = 10;
@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 
 	double egoVelocity = 25;
 
-	while (frame_count < (frame_per_sec*sec_interval))
+    while (frame_count < (frame_per_sec*sec_interval))
 	{
 		viewer->removeAllPointClouds();
 		viewer->removeAllShapes();

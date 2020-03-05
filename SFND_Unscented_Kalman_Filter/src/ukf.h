@@ -9,7 +9,8 @@ class UKF {
   /**
    * Constructor
    */
-  UKF();
+  UKF(){};
+  UKF(double x0, double y0);
 
   enum StateIndex
   {
@@ -33,7 +34,7 @@ class UKF {
   {
       Eigen::VectorXd mean;
       Eigen::MatrixXd covariance;
-      Eigen::MatrixXd weighted_dev;
+      Eigen::MatrixXd deviation;
   };
 
   /**
@@ -65,7 +66,8 @@ class UKF {
    * @param meas_package The measurement at k+1
    */
   void UpdateRadar(MeasurementPackage meas_package);
-
+  void printStatus(std::string step) const;
+  void InitializeState(double x0, double y0);
   void GenerateSigmaPoints();
   void propagateSigmaPoints (double dt);
   Eigen::VectorXd propagatePoint (Eigen::VectorXd x0, double dt);
@@ -120,6 +122,9 @@ class UKF {
 
   // Weights of sigma points
   Eigen::VectorXd weights_;
+
+  // Weighing matrix
+  Eigen::MatrixXd weight_matrix_;
 
   // State dimension
   int n_x_;
