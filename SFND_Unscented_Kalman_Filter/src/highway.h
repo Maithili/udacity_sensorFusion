@@ -20,10 +20,10 @@ public:
 	// Parameters 
 	// --------------------------------
 	// Set which cars to track with UKF
-    std::vector<bool> trackCars = {false,true,false};
+    std::vector<bool> trackCars = {true,true,true};
 	// Visualize sensor measurements
-	bool visualize_lidar = true;
-	bool visualize_radar = true;
+    bool visualize_lidar = true;
+    bool visualize_radar = true;
 	bool visualize_pcd = false;
 	// Predict path in the future using UKF
     double projectedTime = 2;
@@ -121,7 +121,7 @@ public:
 		
 		for (int i = 0; i < traffic.size(); i++)
 		{
-			traffic[i].move((double)1/frame_per_sec, timestamp);
+            traffic[i].move((double)1/(double)frame_per_sec, timestamp);
 			if(!visualize_pcd)
 				traffic[i].render(viewer);
 			// Sense surrounding cars with lidar and radar
@@ -129,10 +129,15 @@ public:
 			{
 				VectorXd gt(4);
 				gt << traffic[i].position.x, traffic[i].position.y, traffic[i].velocity*cos(traffic[i].angle), traffic[i].velocity*sin(traffic[i].angle);
-				tools.ground_truth.push_back(gt);
-                tools.ukfResults(traffic[i],viewer, projectedTime, projectedSteps);
-				tools.lidarSense(traffic[i], viewer, timestamp, visualize_lidar);
+                VectorXd gt_state(4);
+                gt_state << traffic[i].position.x, traffic[i].position.y, traffic[i].velocity, traffic[i].angle;
+                std::cout<< "ground truth:            "<<gt_state.transpose()<<std::endl;
+                tools.ground_truth.push_back(gt);
+
+                tools.lidarSense(traffic[i], viewer, timestamp, visualize_lidar);
 				tools.radarSense(traffic[i], egoCar, viewer, timestamp, visualize_radar);
+                tools.ukfResults(traffic[i],viewer, (double)(1/(double)frame_per_sec), projectedSteps);
+
 				VectorXd estimate(4);
 				double v  = traffic[i].ukf.x_(2);
     			double yaw = traffic[i].ukf.x_(3);
@@ -140,7 +145,7 @@ public:
     			double v2 = sin(yaw)*v;
 				estimate << traffic[i].ukf.x_[0], traffic[i].ukf.x_[1], v1, v2;
 				tools.estimations.push_back(estimate);
-			}
+            }
 		}
 		viewer->addText("Accuracy - RMSE:", 30, 300, 20, 1, 1, 1, "rmse");
 		VectorXd rmse = tools.CalculateRMSE(tools.estimations, tools.ground_truth);

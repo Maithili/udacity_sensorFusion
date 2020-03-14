@@ -13,6 +13,7 @@ public:
   } sensor_type_;
 
   Eigen::VectorXd raw_measurements_;
+  Eigen::VectorXd ego_state_;
 
 };
 

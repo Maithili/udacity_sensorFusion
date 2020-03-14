@@ -9,7 +9,7 @@ using Eigen::VectorXd;
  * Initializes Unscented Kalman filter
  */
 
-double eps = 1e-3;
+double eps = 1e-6;
 
 namespace  {
 Eigen::MatrixXd I(int n)
@@ -24,9 +24,15 @@ Eigen::MatrixXd I(int n)
 }
 }
 
+void wrap(double &angle)
+{
+    while (angle >  M_PI) angle-=2.*M_PI;
+    while (angle < -M_PI) angle+=2.*M_PI;
+}
+
 UKF::UKF(double x0, double y0) {
   // if this is false, laser measurements will be ignored (except during init)
-  use_laser_ = false;
+  use_laser_ = true;
 
   // if this is false, radar measurements will be ignored (except during init)
   use_radar_ = true;
@@ -72,7 +78,7 @@ UKF::UKF(double x0, double y0) {
   n_x_ = 5;
   n_aug_ = 7;
   n_sigma_ = 2*n_aug_+1;
-  lambda_ = 5-n_aug_;
+  lambda_ = 3-n_aug_;
   weights_ = VectorXd(n_sigma_);
   weights_.fill(1/(2*(lambda_+n_aug_)));
   weights_(0) = lambda_/(lambda_+n_aug_);
@@ -83,15 +89,14 @@ UKF::UKF(double x0, double y0) {
 
   // initial state vector
   x_ = VectorXd(n_x_);
-
+    x_.fill(0.0);
   // initial covariance matrix
   P_ = MatrixXd(n_x_, n_x_);
-
+    P_.fill(0.0);
   // initialilzation for sigma points matrix
   Xsig_sam_ = MatrixXd(n_aug_,n_sigma_);
   Xsig_pred_ = MatrixXd(n_x_,n_sigma_);
 
-  InitializeState(x0,y0);
 }
 
 UKF::~UKF() {}
@@ -99,6 +104,7 @@ UKF::~UKF() {}
 void UKF::printStatus(std::string step) const
 {
 std::cout<<step<<": "<<x_.transpose()<<std::endl;
+//std::cout<<P_<<std::endl;
 }
 
 void UKF::ProcessMeasurement(MeasurementPackage meas_package)
@@ -107,14 +113,12 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package)
   if(meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_)
   {
       UpdateRadar(meas_package);
-      printStatus("before measurement update");
-      printStatus("after radar prediction   ");
+      printStatus("after radar update       ");
   }
   else if(meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_)
   {
       UpdateLidar(meas_package);
-      printStatus("before measurement update");
-      printStatus("after lidar prediction   ");
+      printStatus("after lidar update       ");
   }
 }
 
@@ -124,26 +128,11 @@ void UKF::Prediction(double delta_t) {
    * Modify the state vector, x_. Predict sigma points, the state, 
    * and the state covariance matrix.
    */
+    if(!is_initialized_)
+        return;
     GenerateSigmaPoints();
     propagateSigmaPoints(delta_t);
     setStateSampleStats();
-}
-
-void UKF::InitializeState(double x0, double y0)
-{
-    x_.fill(0.0);
-    x_(x) = x0; //float(rand()%RAND_MAX)/RAND_MAX*10-5;
-    x_(y) = y0; //float(rand()%RAND_MAX)/RAND_MAX*10-5;
-    x_(v) = float(rand()%RAND_MAX)/RAND_MAX;
-    x_(h) = float(rand()%RAND_MAX)/RAND_MAX*0.5;
-    x_(w) = float(rand()%RAND_MAX)/RAND_MAX*0.5;
-    P_ = I(n_x_);
-    P_ = P_*100;
-    P_(x,x) = 1;
-    P_(y,y) = 1;
-    GenerateSigmaPoints();
-    propagateSigmaPoints(0.0);
-    is_initialized_ = true;
 }
 
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
@@ -153,6 +142,19 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
    * covariance, P_.
    * You can also calculate the lidar NIS, if desired.
    */
+    if(!is_initialized_)
+    {
+        x_(x) = meas_package.raw_measurements_(x);
+        x_(y) = meas_package.raw_measurements_(y);
+        P_(x,x) = 5;
+        P_(y,y) = 5;
+        P_(v,v) = 10;
+        P_(h,h) = 2;
+        P_(w,w) = 10;
+        is_initialized_ = true;
+        return;
+    }
+
     Eigen::MatrixXd H = Eigen::MatrixXd(2,n_x_);
     H << 1, 0, 0, 0, 0,
          0, 1, 0, 0, 0;
@@ -163,6 +165,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     VectorXd z_hat = H*x_;
     MatrixXd K = P_ * H.transpose() * (H*P_*H.transpose()+R).inverse();
     x_ += K*(meas_package.raw_measurements_ - z_hat);
+    wrap(x_(h));
     P_ = (I(n_x_)-K*H)*P_;
 }
 
@@ -174,8 +177,8 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * You can also calculate the radar NIS, if desired.
    */
 //    std::cout<<"State sigma points"<< std::endl<<Xsig_pred_<<std::endl;
-    Eigen::MatrixXd Zsig_pred = predictRadarMeasurement();
-//    std::cout<<"Predicted radar measurement"<< std::endl<<Zsig_pred<<std::endl;
+    GenerateSigmaPoints();
+    Eigen::MatrixXd Zsig_pred = predictRadarMeasurement(meas_package.ego_state_);
     auto Zstats = calculateSampleStats(Zsig_pred, 3, 1);
     MatrixXd R = MatrixXd(3,3);
     R.fill(0.0);
@@ -186,6 +189,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
     Eigen::MatrixXd Xdev = Xsig_pred_.topLeftCorner(n_x_,n_sigma_);
     for (int i = 0; i < n_sigma_; ++i) {  // iterate over sigma points
         Xdev.col(i) -= x_;
+        wrap(Xdev.col(i)(h));
       }
 //    std::cout<<"Deviation from state mean"<< std::endl<<Xdev<<std::endl;
     Eigen::MatrixXd T = Xdev * weight_matrix_ * Zstats.deviation.transpose();
@@ -193,6 +197,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 //    std::cout<<"Kalman gain"<< std::endl<<K<<std::endl;
     x_ += K * (meas_package.raw_measurements_ - Zstats.mean);
     P_ -= K * S * K.transpose();
+    wrap(x_(h));
 }
 
 void UKF::GenerateSigmaPoints()
@@ -214,12 +219,11 @@ void UKF::GenerateSigmaPoints()
    }
   Xsig_sam_.block(0, 1, n_aug_, n_aug_) += factor * A;
   Xsig_sam_.block(0, n_aug_+1, n_aug_, n_aug_) -= factor * A;
+  Xsig_pred_ = Xsig_sam_.topLeftCorner(n_x_, n_sigma_);
 }
 
 void UKF::propagateSigmaPoints(double dt)
 {
-    std::cout<< "time gap :"<<dt<<std::endl;
-    printStatus("after prediction         ");
     for (int i = 0; i < n_sigma_; ++i)
     {
         Xsig_pred_.col(i) = propagatePoint(Xsig_sam_.col(i), dt);
@@ -262,20 +266,19 @@ Eigen::VectorXd UKF::propagatePoint(Eigen::VectorXd x0, double dt)
 
         x1(w) += dt*x0(n_w);
     }
+    wrap(x1(h));
     return x1;
 }
 
-Eigen::MatrixXd UKF::predictRadarMeasurement()
+Eigen::MatrixXd UKF::predictRadarMeasurement(Eigen::VectorXd ego_state)
 {
     Eigen::MatrixXd Zsig_pred = Eigen::MatrixXd(3,n_sigma_);
     for (int i = 0; i < n_sigma_; ++i)
     {
-        Zsig_pred(r,i) = sqrt(pow(Xsig_pred_(x,i),2) + pow(Xsig_pred_(y,i),2));
-        Zsig_pred(b,i) = atan2(Xsig_pred_(y,i), Xsig_pred_(x,i));
-        if (Zsig_pred(r,i) < eps)
-            Zsig_pred(rdot,i) = 0.0;
-        else
-            Zsig_pred(rdot,i) = Xsig_pred_(v,i) * (Xsig_pred_(x,i)*cos(Xsig_pred_(h)) + Xsig_pred_(y,i)*sin(Xsig_pred_(h,i))) / Zsig_pred(r,i);
+        Zsig_pred(r,i) = sqrt((Xsig_pred_(x,i) - ego_state[x])*((Xsig_pred_(x,i) - ego_state[x])) + (Xsig_pred_(y,i) - ego_state[y])*(Xsig_pred_(y,i) - ego_state[y]));
+        Zsig_pred(b,i) = atan2(Xsig_pred_(y,i) - ego_state[y], Xsig_pred_(x,i) - ego_state[x]);
+        Zsig_pred(rdot,i) = (Xsig_pred_(v,i) * cos(Zsig_pred(b,i) - Xsig_pred_(h)))
+                              - ego_state(v) * cos(Zsig_pred(b,i) - ego_state(h));
     }
     return Zsig_pred;
 }
@@ -300,14 +303,16 @@ UKF::GaussianStats UKF::calculateSampleStats(Eigen::MatrixXd vector, int n, int 
     for (int i = 0; i < n_sigma_; ++i) {  // iterate over sigma points
         stats.mean += weights_(i) * vector.col(i);
       }
-
+    wrap(stats.mean(idx_angle));
     for (int i = 0; i < n_sigma_; ++i) {  // iterate over sigma points
         stats.deviation.col(i) -= stats.mean;
-        while (stats.deviation(idx_angle,i)> M_PI) stats.deviation(idx_angle,i)-=2.*M_PI;
-        while (stats.deviation(idx_angle,i)<-M_PI) stats.deviation(idx_angle,i)+=2.*M_PI;
+        wrap(stats.deviation(idx_angle,i));
+//        stats.covariance += stats.deviation.col(i) * stats.deviation.col(i).transpose() * weights_(i);
       }
 
-    stats.covariance = stats.deviation * weight_matrix_ * stats.deviation.transpose();
+//    Eigen::MatrixXd check_covariance = Eigen::MatrixXd(n,n);
+    stats.covariance = (stats.deviation * weight_matrix_ * stats.deviation.transpose());
+//    if ((check_covariance - (stats.covariance)).norm() > 1 )
 //    std::cout<<"dev of vector "<<stats.deviation<<std::endl;
 //    std::cout<<"weights matrixr "<<weight_matrix_<<std::endl;
 //    std::cout<<"statistical covariance "<<stats.covariance.transpose()<<std::endl;

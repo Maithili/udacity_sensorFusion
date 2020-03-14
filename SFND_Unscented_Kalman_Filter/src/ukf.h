@@ -71,7 +71,7 @@ class UKF {
   void GenerateSigmaPoints();
   void propagateSigmaPoints (double dt);
   Eigen::VectorXd propagatePoint (Eigen::VectorXd x0, double dt);
-  Eigen::MatrixXd predictRadarMeasurement ();
+  Eigen::MatrixXd predictRadarMeasurement (Eigen::VectorXd ego_state);
   void setStateSampleStats();
   GaussianStats calculateSampleStats(Eigen::MatrixXd vector, int n, int idx_angle);
 
