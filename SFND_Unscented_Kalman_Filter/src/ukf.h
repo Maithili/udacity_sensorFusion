@@ -90,6 +90,9 @@ class UKF {
   // state covariance matrix
   Eigen::MatrixXd P_;
 
+  //timestamp of belief
+  int time_us;
+
   // sampled sigma points matrix (augmented state)
   Eigen::MatrixXd Xsig_sam_;
 

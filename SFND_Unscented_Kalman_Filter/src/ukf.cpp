@@ -41,10 +41,10 @@ UKF::UKF(double x0, double y0) {
   is_initialized_ = false;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 3;
+  std_a_ = 1;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 1;
+  std_yawdd_ = 0.5;
   
   /**
    * DO NOT MODIFY measurement noise values below.
@@ -93,6 +93,9 @@ UKF::UKF(double x0, double y0) {
   // initial covariance matrix
   P_ = MatrixXd(n_x_, n_x_);
     P_.fill(0.0);
+
+  time_us = 0;
+
   // initialilzation for sigma points matrix
   Xsig_sam_ = MatrixXd(n_aug_,n_sigma_);
   Xsig_pred_ = MatrixXd(n_x_,n_sigma_);
@@ -155,6 +158,10 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
         return;
     }
 
+    double dt = double(meas_package.timestamp_-time_us)/1000000.0;
+    Prediction(dt);
+    time_us = meas_package.timestamp_;
+
     Eigen::MatrixXd H = Eigen::MatrixXd(2,n_x_);
     H << 1, 0, 0, 0, 0,
          0, 1, 0, 0, 0;
@@ -177,6 +184,10 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * You can also calculate the radar NIS, if desired.
    */
 //    std::cout<<"State sigma points"<< std::endl<<Xsig_pred_<<std::endl;
+    double dt = double(meas_package.timestamp_-time_us)/1000000.0;
+    Prediction(dt);
+    time_us = meas_package.timestamp_;
+
     GenerateSigmaPoints();
     Eigen::MatrixXd Zsig_pred = predictRadarMeasurement(meas_package.ego_state_);
     auto Zstats = calculateSampleStats(Zsig_pred, 3, 1);

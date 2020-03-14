@@ -22,8 +22,8 @@ public:
 	// Set which cars to track with UKF
     std::vector<bool> trackCars = {true,true,true};
 	// Visualize sensor measurements
-    bool visualize_lidar = true;
-    bool visualize_radar = true;
+    bool visualize_lidar = false;
+    bool visualize_radar = false;
 	bool visualize_pcd = false;
 	// Predict path in the future using UKF
     double projectedTime = 2;
@@ -136,7 +136,7 @@ public:
 
                 tools.lidarSense(traffic[i], viewer, timestamp, visualize_lidar);
 				tools.radarSense(traffic[i], egoCar, viewer, timestamp, visualize_radar);
-                tools.ukfResults(traffic[i],viewer, (double)(1/(double)frame_per_sec), projectedSteps);
+                tools.ukfResults(traffic[i], viewer, projectedTime, projectedSteps);
 
 				VectorXd estimate(4);
 				double v  = traffic[i].ukf.x_(2);
