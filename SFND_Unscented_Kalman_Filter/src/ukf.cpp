@@ -41,10 +41,10 @@ UKF::UKF(double x0, double y0) {
   is_initialized_ = false;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 1;
+  std_a_ = 3;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 0.5;
+  std_yawdd_ = 0.6;
   
   /**
    * DO NOT MODIFY measurement noise values below.
@@ -149,11 +149,11 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     {
         x_(x) = meas_package.raw_measurements_(x);
         x_(y) = meas_package.raw_measurements_(y);
-        P_(x,x) = 5;
-        P_(y,y) = 5;
-        P_(v,v) = 10;
-        P_(h,h) = 2;
-        P_(w,w) = 10;
+        P_(x,x) = 25;
+        P_(y,y) = 4;
+        P_(v,v) = 225;
+        P_(h,h) = 9;
+        P_(w,w) = 9;
         is_initialized_ = true;
         return;
     }

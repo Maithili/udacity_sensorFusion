@@ -107,7 +107,6 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 	for(unsigned int i=0; i < estimations.size(); ++i){
 
         residual = estimations[i] - ground_truth[i];
-
 		//coefficient-wise multiplication
 		residual = residual.array()*residual.array();
 		rmse += residual;
@@ -115,10 +114,9 @@ VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
 
 	//calculate the mean
 	rmse = rmse/estimations.size();
-
 	//calculate the squared root
 	rmse = rmse.array().sqrt();
-    std::cout<<"Errorrrrr  :"<<residual.transpose()<< std::endl;
+    std::cout<<"Errorrrrr  :"<<rmse.transpose()<< std::endl;
 	//return the result
 	return rmse;
 }
